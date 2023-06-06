@@ -88,12 +88,14 @@ for name, data in datasets.items():
 
     plt.subplot(1, 2, 1)
     plt.scatter(non_dominated_initial_fitness_values[:, 0], non_dominated_initial_fitness_values[:, 1], color='red')
+    # plt.plot(non_dominated_initial_fitness_values[:, 0], non_dominated_initial_fitness_values[:, 1], color='red')  # Plot lines
     plt.title(f'Initial Non-Dominated Front for {name}', pad=20, fontsize=14)
     plt.xlabel('Number of Selected Features', labelpad=15, fontsize=12)
     plt.ylabel('Classification Error', labelpad=15, fontsize=12)
 
     plt.subplot(1, 2, 2)
     plt.scatter(non_dominated_final_fitness_values[:, 0], non_dominated_final_fitness_values[:, 1], color='green')
+    # plt.plot(non_dominated_final_fitness_values[:, 0], non_dominated_final_fitness_values[:, 1], color='green')  # Plot lines
     plt.title(f'Final Non-Dominated Front for {name}', pad=20, fontsize=14)
     plt.xlabel('Number of Selected Features', labelpad=15, fontsize=12)
     plt.ylabel('Classification Error', labelpad=15, fontsize=12)

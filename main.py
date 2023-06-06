@@ -87,16 +87,20 @@ for name, data in datasets.items():
     plt.figure(figsize=(10, 5))
 
     plt.subplot(1, 2, 1)
-    plt.scatter(non_dominated_initial_fitness_values[:, 0], non_dominated_initial_fitness_values[:, 1], color='red')
+    plt.scatter(initial_fitness_values[:, 0], initial_fitness_values[:, 1], color='lightcoral')
+    non_dominated_initial_fitness_values = np.array([ind.fitness.values for ind in non_dominated_initial_population])
+    plt.scatter(non_dominated_initial_fitness_values[:, 0], non_dominated_initial_fitness_values[:, 1], color='red', s=100)
     # plt.plot(non_dominated_initial_fitness_values[:, 0], non_dominated_initial_fitness_values[:, 1], color='red')  # Plot lines
-    plt.title(f'Initial Non-Dominated Front for {name}', pad=20, fontsize=14)
+    plt.title(f'Initial Front for {name}', pad=20, fontsize=14)
     plt.xlabel('Number of Selected Features', labelpad=15, fontsize=12)
     plt.ylabel('Classification Error', labelpad=15, fontsize=12)
 
     plt.subplot(1, 2, 2)
-    plt.scatter(non_dominated_final_fitness_values[:, 0], non_dominated_final_fitness_values[:, 1], color='green')
+    plt.scatter(final_fitness_values[:, 0], final_fitness_values[:, 1], color='lightgreen')
+    non_dominated_final_fitness_values = np.array([ind.fitness.values for ind in non_dominated_final_population])
+    plt.scatter(non_dominated_final_fitness_values[:, 0], non_dominated_final_fitness_values[:, 1], color='green', s=100)
     # plt.plot(non_dominated_final_fitness_values[:, 0], non_dominated_final_fitness_values[:, 1], color='green')  # Plot lines
-    plt.title(f'Final Non-Dominated Front for {name}', pad=20, fontsize=14)
+    plt.title(f'Final Front for {name}', pad=20, fontsize=14)
     plt.xlabel('Number of Selected Features', labelpad=15, fontsize=12)
     plt.ylabel('Classification Error', labelpad=15, fontsize=12)
 

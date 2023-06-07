@@ -32,6 +32,11 @@
 import random
 from deap import base, creator, tools, algorithms
 import numpy as np
+from sklearn.metrics import zero_one_loss, accuracy_score
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+
 from knn import knn
 
 
@@ -72,11 +77,11 @@ def run_nsga(X_train, y_train, X_test, y_test, k=5, Np=100, Cr=0.9, pm=0.01, max
     initial_population = list(population)
 
     # Run the genetic algorithm
-    population, logbook = algorithms.eaMuPlusLambda(population, toolbox, mu=Np, lambda_=Np, cxpb=0.5, mutpb=0.1, ngen=15, verbose=False)
+    population, logbook = algorithms.eaMuPlusLambda(population, toolbox, mu=Np, lambda_=Np, cxpb=0.5, mutpb=0.1,
+                                                    ngen=15, verbose=False)
 
     # Get final population and fitness values
     final_population = population
     final_fitness_values = np.array([toolbox.evaluate(individual) for individual in final_population])
 
     return initial_population, population, initial_fitness_values, final_population, final_fitness_values, logbook
-

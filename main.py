@@ -31,12 +31,16 @@
 
 # Section 1: Import Required Libraries
 import pandas as pd
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import MinMaxScaler
+
 from nsga import run_nsga
 from knn import knn
 import matplotlib.pyplot as plt
 import numpy as np
-
+import csv
 
 # Section 2: Load Datasets
 sonar_data = pd.read_csv('dataset/sonar_dataset.csv')
@@ -48,7 +52,9 @@ datasets = {'SONAR': sonar_data, 'MUSK': musk_data}
 def evaluate_individual(individual, X_train, y_train, X_test, y_test):
     """Evaluate each individual based on selected features and KNN performance."""
     selected_features = np.where(np.array(individual) == True)[0]
-    return len(selected_features), knn(X_train, X_test, y_train, y_test, selected_features, k=5)
+    mce_train = knn(X_train, X_train, y_train, y_train, selected_features, k=5)
+    mce_test = knn(X_train, X_test, y_train, y_test, selected_features, k=5)
+    return len(selected_features), mce_train, mce_test
 
 
 def hypervolume(population, obj1, obj2):
@@ -65,6 +71,7 @@ def hypervolume(population, obj1, obj2):
         a2 = b2
     return volume
 
+
 def non_dominated_solutions(population):
     """Returns the non-dominated solutions from a population."""
     non_dominated = []
@@ -73,13 +80,46 @@ def non_dominated_solutions(population):
         for other_individual in population:
             if (other_individual.fitness.values[0] < individual.fitness.values[0] and
                 other_individual.fitness.values[1] <= individual.fitness.values[1]) or (
-                other_individual.fitness.values[0] <= individual.fitness.values[0] and
-                other_individual.fitness.values[1] < individual.fitness.values[1]):
+                    other_individual.fitness.values[0] <= individual.fitness.values[0] and
+                    other_individual.fitness.values[1] < individual.fitness.values[1]):
                 is_dominated = True
                 break
         if not is_dominated:
             non_dominated.append(individual)
     return non_dominated
+
+
+def calculate_mce(X_train, y_train, X_test, y_test, final_population):
+    scaler = MinMaxScaler()
+    mce_train = []
+    mce_test = []
+    num_features = []
+
+    for individual in final_population:
+        selected_features = np.where(np.array(individual) == True)[0]
+        num_features.append(len(selected_features))
+
+        X_train_selected = X_train[:, selected_features]
+        X_test_selected = X_test[:, selected_features]
+
+        # Scale the data
+        scaler.fit(X_train_selected)
+        X_train_selected = scaler.transform(X_train_selected)
+        X_test_selected = scaler.transform(X_test_selected)
+
+        # Calculate MCE on train set
+        classifier = KNeighborsClassifier(n_neighbors=5)
+        classifier.fit(X_train_selected, y_train)
+        y_train_pred = classifier.predict(X_train_selected)
+        mce_train.append(1 - accuracy_score(y_train, y_train_pred))
+
+        # Calculate MCE on test set
+        y_test_pred = classifier.predict(X_test_selected)
+        mce_test.append(1 - accuracy_score(y_test, y_test_pred))
+
+    return mce_train, mce_test, num_features
+
+
 
 # Section 4: Main Process - Training and Evaluation
 print("\n==================== Training and Evaluation ====================\n")
@@ -98,8 +138,19 @@ for name, data in datasets.items():
     print(f'\nClassification error using all features for {name}: {all_features_error}\n')
 
     # Run NSGA-II algorithm
-    initial_population, population, initial_fitness_values, final_population, final_fitness_values, logbook = run_nsga(X_train, y_train, X_test, y_test, k=5, Np=100, max_nfc=100 * 100)
+    initial_population, population, initial_fitness_values, final_population, final_fitness_values, logbook = run_nsga(
+        X_train, y_train, X_test, y_test, k=5, Np=100, max_nfc=100 * 100)
 
+    mce_train, mce_test, selected_features = calculate_mce(X_train, y_train, X_test, y_test, population)
+
+    # Create a dataframe
+    df = pd.DataFrame({'Generation': range(len(mce_train)),
+                       'MCE_train': mce_train,
+                       'MCE_test': mce_test,
+                       'Selected_Features': selected_features})
+
+    print(df.head(15))
+    print("\n")
     non_dominated_initial_population = non_dominated_solutions(initial_population)
     non_dominated_final_population = non_dominated_solutions(final_population)
 
@@ -118,11 +169,15 @@ for name, data in datasets.items():
     plt.figure(figsize=(10, 5))
 
     plt.subplot(1, 2, 1)
-    plt.scatter(initial_fitness_values[:, 0], initial_fitness_values[:, 1], color='lightcoral', label='Feasible Solutions')
+    plt.scatter(initial_fitness_values[:, 0], initial_fitness_values[:, 1], color='lightcoral',
+                label='Feasible Solutions')
     non_dominated_initial_fitness_values = np.array([ind.fitness.values for ind in non_dominated_initial_population])
-    non_dominated_initial_fitness_values = non_dominated_initial_fitness_values[non_dominated_initial_fitness_values[:,0].argsort()]  # Sort on the first objective
-    plt.scatter(non_dominated_initial_fitness_values[:, 0], non_dominated_initial_fitness_values[:, 1], color='red', s=100, label='Non-Dominated Solutions')
-    plt.plot(non_dominated_initial_fitness_values[:, 0], non_dominated_initial_fitness_values[:, 1], color='red')  # Plot lines
+    non_dominated_initial_fitness_values = non_dominated_initial_fitness_values[
+        non_dominated_initial_fitness_values[:, 0].argsort()]  # Sort on the first objective
+    plt.scatter(non_dominated_initial_fitness_values[:, 0], non_dominated_initial_fitness_values[:, 1], color='red',
+                s=100, label='Non-Dominated Solutions')
+    plt.plot(non_dominated_initial_fitness_values[:, 0], non_dominated_initial_fitness_values[:, 1],
+             color='red')  # Plot lines
     plt.title(f'Initial Front for {name}', pad=20, fontsize=14)
     plt.xlabel('Number of Selected Features', labelpad=15, fontsize=12)
     plt.ylabel('Classification Error', labelpad=15, fontsize=12)
@@ -131,9 +186,12 @@ for name, data in datasets.items():
     plt.subplot(1, 2, 2)
     plt.scatter(final_fitness_values[:, 0], final_fitness_values[:, 1], color='lightgreen', label='Feasible Solutions')
     non_dominated_final_fitness_values = np.array([ind.fitness.values for ind in non_dominated_final_population])
-    non_dominated_final_fitness_values = non_dominated_final_fitness_values[non_dominated_final_fitness_values[:,0].argsort()]  # Sort on the first objective
-    plt.scatter(non_dominated_final_fitness_values[:, 0], non_dominated_final_fitness_values[:, 1], color='green', s=100, label='Non-Dominated Solutions')
-    plt.plot(non_dominated_final_fitness_values[:, 0], non_dominated_final_fitness_values[:, 1], color='green')  # Plot lines
+    non_dominated_final_fitness_values = non_dominated_final_fitness_values[
+        non_dominated_final_fitness_values[:, 0].argsort()]  # Sort on the first objective
+    plt.scatter(non_dominated_final_fitness_values[:, 0], non_dominated_final_fitness_values[:, 1], color='green',
+                s=100, label='Non-Dominated Solutions')
+    plt.plot(non_dominated_final_fitness_values[:, 0], non_dominated_final_fitness_values[:, 1],
+             color='green')  # Plot lines
     plt.title(f'Final Front for {name}', pad=20, fontsize=14)
     plt.xlabel('Number of Selected Features', labelpad=15, fontsize=12)
     plt.ylabel('Classification Error', labelpad=15, fontsize=12)
@@ -157,7 +215,8 @@ for name, data in datasets.items():
 
     # Run NSGA-II algorithm and calculate hypervolume for 15 runs
     for _ in range(15):
-        initial_population, population, initial_fitness_values, final_population, final_fitness_values, logbook = run_nsga(X_train, y_train, X_test, y_test, k=5, Np=100, max_nfc=100 * 100)
+        initial_population, population, initial_fitness_values, final_population, final_fitness_values, logbook = run_nsga(
+            X_train, y_train, X_test, y_test, k=5, Np=100, max_nfc=100 * 100)
         hv = hypervolume(final_population, 0, 1)
         hv_values.append(hv)
 
